@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>C.A.E.R. — Panel TV</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --forest:#1a5c2a; --forest-dark:#0f3a1a;
+    --gold:#d4a017; --gold-light:#f0c040;
+    --cream:#faf6ec;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{width:100%;height:100%;background:var(--forest-dark);font-family:'DM Sans',sans-serif;overflow:hidden;}
+
+  /* ===== PANTALLA DE PIN ===== */
+  #pinScreen{
+    width:100vw;height:100vh;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    background:radial-gradient(circle at 50% 30%, rgba(240,192,64,0.1), transparent 50%),
+      linear-gradient(160deg, var(--forest-dark) 0%, var(--forest) 100%);
+    color:var(--cream);
+  }
+  #pinScreen .mark{font-family:'Playfair Display',serif;font-weight:800;font-size:4vw;color:var(--gold-light);margin-bottom:1vh;}
+  #pinScreen .sub{font-size:1.3vw;color:rgba(250,246,236,0.6);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:5vh;}
+  .pin-dots{display:flex;gap:1.5vw;margin-bottom:5vh;}
+  .pin-dot{width:2vw;height:2vw;border-radius:50%;border:2px solid rgba(240,192,64,0.4);transition:all .2s;}
+  .pin-dot.filled{background:var(--gold-light);border-color:var(--gold-light);box-shadow:0 0 1vw var(--gold-light);}
+  .pin-pad{display:grid;grid-template-columns:repeat(3,7vw);grid-gap:1.5vw;}
+  .pin-key{
+    aspect-ratio:1;border-radius:14px;
+    background:rgba(255,255,255,0.05);border:1px solid rgba(240,192,64,0.25);
+    color:var(--cream);font-size:2.2vw;font-weight:700;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .pin-key.selected{background:var(--gold-light);color:var(--forest-dark);border-color:var(--gold-light);}
+  .pin-error{margin-top:3vh;color:#e88;font-size:1.2vw;height:1.5vw;}
+  .pin-hint{margin-top:4vh;font-size:1vw;color:rgba(250,246,236,0.35);}
+
+  /* ===== PANEL PRINCIPAL ===== */
+  .tv{
+    display:none;
+    width:100vw;height:100vh;
+    background:radial-gradient(circle at 15% 10%, rgba(240,192,64,0.08), transparent 40%),
+      linear-gradient(160deg, var(--forest-dark) 0%, var(--forest) 100%);
+    color:var(--cream);
+    flex-direction:column;
+    padding:3.2vh 4vw;
+  }
+  .tv.show{display:flex;}
+  header{display:flex;align-items:baseline;justify-content:space-between;border-bottom:2px solid rgba(240,192,64,0.35);padding-bottom:2vh;margin-bottom:2.5vh;}
+  .brand{display:flex;align-items:baseline;gap:1vw;}
+  .brand .mark{font-family:'Playfair Display',serif;font-weight:800;font-size:3vw;color:var(--gold-light);}
+  .brand .sub{font-size:1.2vw;color:rgba(250,246,236,0.65);letter-spacing:0.08em;text-transform:uppercase;}
+  .clock{font-size:1.5vw;color:rgba(250,246,236,0.75);text-align:right;}
+  .clock b{display:block;font-size:2.2vw;color:var(--gold-light);font-weight:700;}
+
+  .tabs{display:flex;gap:1vw;margin-bottom:2.5vh;}
+  .tab{padding:1vh 1.6vw;border-radius:999px;border:1px solid rgba(240,192,64,0.3);font-size:1.1vw;letter-spacing:0.05em;text-transform:uppercase;color:rgba(250,246,236,0.55);background:rgba(255,255,255,0.03);transition:all .3s;}
+  .tab.active{background:var(--gold-light);color:var(--forest-dark);font-weight:700;border-color:var(--gold-light);}
+
+  .section{display:none;flex:1;flex-direction:column;}
+  .section.active{display:flex;}
+
+  .grid{flex:1;display:grid;grid-template-columns:1.15fr 1fr 1fr;grid-template-rows:1fr 1fr;gap:2vh 2vw;}
+  .card{background:rgba(255,255,255,0.05);border:1px solid rgba(240,192,64,0.18);border-radius:14px;padding:2vh 1.8vw;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden;}
+  .card h3{font-weight:700;font-size:1.05vw;letter-spacing:0.04em;text-transform:uppercase;color:rgba(250,246,236,0.6);margin-bottom:1.2vh;}
+  .card.big{grid-row:span 2;justify-content:center;align-items:flex-start;}
+  .card.big .num{font-family:'Playfair Display',serif;font-weight:800;font-size:6.5vw;line-height:1;color:var(--gold-light);}
+  .card.big .label{font-size:1.3vw;color:rgba(250,246,236,0.8);margin-top:1vh;}
+  .card.big .delta{margin-top:2vh;font-size:1.1vw;color:#8fd19e;font-weight:500;}
+  .barrow{display:grid;grid-template-columns:8vw 1fr 3vw;align-items:center;gap:0.8vw;margin-bottom:1vh;}
+  .barrow .name{font-size:1vw;color:rgba(250,246,236,0.85);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .barrow .track{height:0.9vh;background:rgba(255,255,255,0.08);border-radius:6px;overflow:hidden;}
+  .barrow .fill{height:100%;background:linear-gradient(90deg,var(--gold),var(--gold-light));border-radius:6px;}
+  .barrow .pct{font-size:0.95vw;color:var(--gold-light);text-align:right;font-weight:700;}
+  .quizrow{display:flex;justify-content:space-between;padding:0.7vh 0;border-bottom:1px dashed rgba(255,255,255,0.08);font-size:1vw;}
+  .quizrow .score{color:var(--gold-light);font-weight:700;}
+  .resrow{display:flex;justify-content:space-between;font-size:1vw;padding:0.5vh 0;gap:1vw;}
+  .resrow span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .resrow span:last-child{color:var(--gold-light);font-weight:700;white-space:nowrap;}
+  .empty{color:rgba(250,246,236,0.4);font-size:1vw;font-style:italic;}
+
+  .agenda-wrap{flex:1;display:flex;gap:2vw;}
+  .agenda-col{flex:1;background:rgba(255,255,255,0.05);border:1px solid rgba(240,192,64,0.18);border-radius:14px;padding:2.2vh 2vw;display:flex;flex-direction:column;overflow:hidden;}
+  .agenda-col h3{font-size:1.3vw;color:var(--gold-light);margin-bottom:1.5vh;font-family:'Playfair Display',serif;}
+  .timeline{display:flex;flex-direction:column;gap:1.4vh;overflow-y:auto;}
+  .tl-item{display:flex;gap:1.2vw;align-items:flex-start;}
+  .tl-time{width:5vw;font-size:1.1vw;color:var(--gold-light);font-weight:700;flex-shrink:0;}
+  .tl-dot{width:0.8vw;height:0.8vw;border-radius:50%;background:var(--gold-light);margin-top:0.5vh;flex-shrink:0;}
+  .tl-content{font-size:1.05vw;color:rgba(250,246,236,0.9);}
+  .tl-content .sub{font-size:0.85vw;color:rgba(250,246,236,0.55);margin-top:0.3vh;}
+  .tag{display:inline-block;font-size:0.75vw;padding:0.2vh 0.7vw;border-radius:999px;margin-top:0.4vh;}
+  .tag.cal{background:rgba(159,225,231,0.2);color:#9fe1e7;}
+  .tag.booking{background:rgba(240,192,64,0.2);color:var(--gold-light);}
+
+  .avisos-wrap{flex:1;display:flex;flex-direction:column;gap:1.6vh;overflow-y:auto;}
+  .aviso-row{display:flex;align-items:center;gap:1.4vw;background:rgba(255,255,255,0.05);border:1px solid rgba(240,192,64,0.15);border-radius:12px;padding:1.6vh 1.8vw;}
+  .aviso-icon{width:3vw;height:3vw;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.5vw;font-weight:800;flex-shrink:0;}
+  .aviso-icon.form{background:#d4a017;color:#0f3a1a;}
+  .aviso-icon.ig{background:linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888);color:#fff;}
+  .aviso-icon.wa{background:#25D366;color:#0f3a1a;}
+  .aviso-icon.fb{background:#1877F2;color:#fff;}
+  .aviso-icon.tt{background:#111;color:#fff;border:1px solid rgba(255,255,255,0.3);}
+  .aviso-body{flex:1;}
+  .aviso-title{font-size:1.15vw;font-weight:700;color:var(--cream);}
+  .aviso-sub{font-size:0.95vw;color:rgba(250,246,236,0.55);margin-top:0.2vh;}
+  .aviso-time{font-size:0.9vw;color:rgba(250,246,236,0.4);white-space:nowrap;}
+
+  footer{margin-top:2vh;display:flex;justify-content:center;gap:0.9vw;}
+  footer .dot{width:0.9vw;height:0.9vw;border-radius:50%;background:rgba(255,255,255,0.2);}
+  footer .dot.active{background:var(--gold-light);box-shadow:0 0 0.6vw var(--gold-light);}
+</style>
+</head>
+<body>
+
+  <!-- ===== PANTALLA DE PIN ===== -->
+  <div id="pinScreen">
+    <div class="mark">C.A.E.R.</div>
+    <div class="sub">Panel privado — ingresá el PIN</div>
+    <div class="pin-dots" id="pinDots">
+      <div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div>
+    </div>
+    <div class="pin-pad" id="pinPad">
+      <div class="pin-key" data-n="1">1</div>
+      <div class="pin-key" data-n="2">2</div>
+      <div class="pin-key" data-n="3">3</div>
+      <div class="pin-key" data-n="4">4</div>
+      <div class="pin-key" data-n="5">5</div>
+      <div class="pin-key" data-n="6">6</div>
+      <div class="pin-key" data-n="7">7</div>
+      <div class="pin-key" data-n="8">8</div>
+      <div class="pin-key" data-n="9">9</div>
+      <div class="pin-key" data-n="del">⌫</div>
+      <div class="pin-key" data-n="0">0</div>
+      <div class="pin-key" data-n="ok">OK</div>
+    </div>
+    <div class="pin-error" id="pinError"></div>
+    <div class="pin-hint">Navegá con las flechas del control y confirmá con OK</div>
+  </div>
+
+  <!-- ===== PANEL PRINCIPAL ===== -->
+  <div class="tv" id="mainPanel">
+    <header>
+      <div class="brand">
+        <span class="mark">C.A.E.R.</span>
+        <span class="sub">Panel general — privado</span>
+      </div>
+      <div class="clock" id="clockBox">—<b id="clockTime">--:--</b></div>
+    </header>
+
+    <div class="tabs">
+      <div class="tab active" data-tab="0">Resumen</div>
+      <div class="tab" data-tab="1">Agenda de hoy</div>
+      <div class="tab" data-tab="2">Avisos</div>
+    </div>
+
+    <div class="section active" id="sec-0">
+      <div class="grid">
+        <div class="card big">
+          <h3>Alumnos activos</h3>
+          <div class="num" id="statActive">—</div>
+          <div class="label">de <span id="statTotal">—</span> inscriptos en total</div>
+          <div class="delta" id="statDelta">▲ cargando…</div>
+        </div>
+        <div class="card"><h3>Avance por materia</h3><div id="progressList"><div class="empty">Cargando…</div></div></div>
+        <div class="card"><h3>Promedios de quiz</h3><div id="quizList"><div class="empty">Cargando…</div></div></div>
+        <div class="card"><h3>Estado de alumnos</h3><div id="statusList"><div class="empty">Cargando…</div></div></div>
+        <div class="card"><h3>Próximas reservas</h3><div id="bookingsList"><div class="empty">Cargando…</div></div></div>
+      </div>
+    </div>
+
+    <div class="section" id="sec-1">
+      <div class="agenda-wrap">
+        <div class="agenda-col"><h3>Hoy</h3><div class="timeline" id="agendaHoy"><div class="empty">Aún no conectado a Google Calendar</div></div></div>
+        <div class="agenda-col"><h3>Mañana</h3><div class="timeline" id="agendaManana"><div class="empty">Aún no conectado a Google Calendar</div></div></div>
+      </div>
+    </div>
+
+    <div class="section" id="sec-2">
+      <div class="avisos-wrap" id="avisosList">
+        <div class="empty">Aún no conectado a notificaciones</div>
+      </div>
+    </div>
+
+    <footer>
+      <div class="dot active" data-idx="0"></div>
+      <div class="dot" data-idx="1"></div>
+      <div class="dot" data-idx="2"></div>
+    </footer>
+  </div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+/* ============ CONFIG ============ */
+const CORRECT_PIN = "2311"; // <-- cambiá este PIN cuando quieras, son solo 4 números entre comillas
+const firebaseConfig = {
+  apiKey: "AIzaSyBQgPyTugCCDfTU2QnYJLiOeJyNszXz4NE",
+  authDomain: "caer-plataforma.firebaseapp.com",
+  projectId: "caer-plataforma",
+  storageBucket: "caer-plataforma.firebasestorage.app",
+  messagingSenderId: "862576745883",
+  appId: "1:862576745883:web:ba0ada497918325654153e"
+};
+
+/* ============ PANTALLA DE PIN ============ */
+const pinScreen = document.getElementById('pinScreen');
+const mainPanel = document.getElementById('mainPanel');
+const pinDots = document.querySelectorAll('.pin-dot');
+const pinError = document.getElementById('pinError');
+const keys = Array.from(document.querySelectorAll('.pin-key'));
+let entered = "";
+let selectedIdx = 0;
+
+function paintDots(){
+  pinDots.forEach((d,i)=> d.classList.toggle('filled', i < entered.length));
+}
+function paintSelection(){
+  keys.forEach((k,i)=> k.classList.toggle('selected', i===selectedIdx));
+}
+function pressKey(k){
+  const n = k.dataset.n;
+  if(n === 'del'){ entered = entered.slice(0,-1); pinError.textContent=''; }
+  else if(n === 'ok'){ checkPin(); }
+  else if(entered.length < 4){ entered += n; pinError.textContent=''; }
+  paintDots();
+  if(entered.length === 4) checkPin();
+}
+function checkPin(){
+  if(entered === CORRECT_PIN){
+    sessionStorage.setItem('caer_tv_unlocked','1');
+    unlock();
+  } else {
+    pinError.textContent = 'PIN incorrecto';
+    entered = "";
+    paintDots();
+  }
+}
+function unlock(){
+  pinScreen.style.display = 'none';
+  mainPanel.classList.add('show');
+  startApp();
+}
+
+// Navegación con flechas + Enter del control remoto (grilla 3 columnas x 4 filas)
+document.addEventListener('keydown', (e)=>{
+  if(pinScreen.style.display === 'none') return;
+  const cols = 3;
+  if(e.key === 'ArrowRight') selectedIdx = Math.min(selectedIdx+1, keys.length-1);
+  if(e.key === 'ArrowLeft') selectedIdx = Math.max(selectedIdx-1, 0);
+  if(e.key === 'ArrowDown') selectedIdx = Math.min(selectedIdx+cols, keys.length-1);
+  if(e.key === 'ArrowUp') selectedIdx = Math.max(selectedIdx-cols, 0);
+  if(e.key === 'Enter'){ pressKey(keys[selectedIdx]); }
+  paintSelection();
+});
+// También clickeable con mouse/touch (control remoto tipo "aire" o TV táctil)
+keys.forEach((k,i)=> k.addEventListener('click', ()=> { selectedIdx = i; paintSelection(); pressKey(k); }));
+
+paintDots(); paintSelection();
+
+// Si ya se desbloqueó antes en esta sesión de navegador, saltea el PIN
+if(sessionStorage.getItem('caer_tv_unlocked') === '1'){ unlock(); }
+
+/* ============ APP PRINCIPAL (solo arranca tras el PIN) ============ */
+function startApp(){
+  const fbApp = initializeApp(firebaseConfig);
+  const auth = getAuth(fbApp);
+  const db = getFirestore(fbApp);
+
+  // Inicio de sesión anónimo: sin esto, aunque alguien tenga la config,
+  // las reglas de Firestore (a configurar) le bloquean la lectura.
+  signInAnonymously(auth).catch(err => console.error('Error auth anónima:', err));
+
+  function tickClock(){
+    const now = new Date();
+    const days = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+    const months = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+    document.getElementById('clockBox').firstChild.textContent = `${days[now.getDay()]} ${now.getDate()} de ${months[now.getMonth()]}`;
+    document.getElementById('clockTime').textContent = now.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+  }
+  tickClock(); setInterval(tickClock, 30000);
+
+  let students=[], subjects=[], itemViews=[], quizAttempts=[], bookings=[];
+
+  function escapeHtml(str){ return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function formatShort(iso){ try{ const d=new Date(iso+'T00:00:00'); return d.toLocaleDateString('es-AR',{day:'2-digit',month:'short'});}catch{return iso;} }
+
+  function render(){
+    renderStats(); renderProgress(); renderQuizzes(); renderStatus(); renderBookings();
+  }
+  function renderStats(){
+    const total = students.length;
+    const active = students.filter(s=>s.status==='Activo').length;
+    document.getElementById('statActive').textContent = active;
+    document.getElementById('statTotal').textContent = total;
+    const weekAgo = Date.now() - 7*24*60*60*1000;
+    const newThisWeek = students.filter(s=>s.startDate && new Date(s.startDate).getTime()>=weekAgo).length;
+    document.getElementById('statDelta').textContent = `▲ +${newThisWeek} esta semana`;
+  }
+  function renderProgress(){
+    const el = document.getElementById('progressList');
+    if(!subjects.length){ el.innerHTML='<div class="empty">Sin materias cargadas</div>'; return; }
+    const bySubject = {};
+    subjects.forEach(s=>{ bySubject[s.id]={name:s.name,watched:0,total:0}; });
+    itemViews.forEach(v=>{ const subj=subjects.find(s=>v.itemId && v.itemId.startsWith(s.id)); if(subj) bySubject[subj.id].watched+=1; });
+    subjects.forEach(s=>{ const lessonsTotal=(s.materials?.length||0)+(s.videos?.length||0)||1; bySubject[s.id].total=lessonsTotal*Math.max(students.length,1); });
+    const rows = Object.values(bySubject).map(s=>({name:s.name,pct:Math.min(100,Math.round((s.watched/Math.max(s.total,1))*100))})).sort((a,b)=>b.pct-a.pct).slice(0,5);
+    el.innerHTML = rows.map(r=>`<div class="barrow"><span class="name">${escapeHtml(r.name)}</span><div class="track"><div class="fill" style="width:${r.pct}%"></div></div><span class="pct">${r.pct}%</span></div>`).join('') || '<div class="empty">Sin datos aún</div>';
+  }
+  function renderQuizzes(){
+    const el = document.getElementById('quizList');
+    if(!quizAttempts.length){ el.innerHTML='<div class="empty">Sin intentos de quiz aún</div>'; return; }
+    const bySubject={};
+    quizAttempts.forEach(q=>{ if(!bySubject[q.subjectId]) bySubject[q.subjectId]={sum:0,count:0}; const pct=q.total?(q.score/q.total)*10:0; bySubject[q.subjectId].sum+=pct; bySubject[q.subjectId].count+=1; });
+    const rows = Object.entries(bySubject).map(([id,v])=>{ const subj=subjects.find(s=>s.id===id); return {name:subj?subj.name:id, avg:(v.sum/v.count).toFixed(1)}; }).sort((a,b)=>b.avg-a.avg).slice(0,5);
+    el.innerHTML = rows.map(r=>`<div class="quizrow"><span>${escapeHtml(r.name)}</span><span class="score">${r.avg}</span></div>`).join('');
+  }
+  function renderStatus(){
+    const el = document.getElementById('statusList');
+    if(!students.length){ el.innerHTML='<div class="empty">Sin alumnos cargados</div>'; return; }
+    const counts={Activo:0,Pendiente:0,Inactivo:0};
+    students.forEach(s=>{ if(counts[s.status]!==undefined) counts[s.status]++; });
+    const total=students.length;
+    el.innerHTML = Object.entries(counts).map(([k,v])=>{ const pct=Math.round((v/total)*100); return `<div class="barrow"><span class="name">${k}</span><div class="track"><div class="fill" style="width:${pct}%"></div></div><span class="pct">${v}</span></div>`; }).join('');
+  }
+  function renderBookings(){
+    const el = document.getElementById('bookingsList');
+    const upcoming = bookings.filter(b=>['Reservada','Confirmada'].includes(b.status)).sort((a,b)=>(a.date||'').localeCompare(b.date||'')).slice(0,5);
+    if(!upcoming.length){ el.innerHTML='<div class="empty">Sin reservas próximas</div>'; return; }
+    el.innerHTML = upcoming.map(b=>{ const student=students.find(s=>s.id===b.studentId); const when=b.date?formatShort(b.date):(b.day||''); return `<div class="resrow"><span>${escapeHtml(student?.name||'Alumno')} · ${escapeHtml(when)}</span><span>${escapeHtml(b.time||'')}</span></div>`; }).join('');
+  }
+
+  onSnapshot(collection(db,'students'), snap=>{ students=snap.docs.map(d=>({id:d.id,...d.data()})); render(); });
+  onSnapshot(collection(db,'subjects'), snap=>{ subjects=snap.docs.map(d=>({id:d.id,...d.data()})); render(); });
+  onSnapshot(collection(db,'itemViews'), snap=>{ itemViews=snap.docs.map(d=>({id:d.id,...d.data()})); renderProgress(); });
+  onSnapshot(collection(db,'quizAttempts'), snap=>{ quizAttempts=snap.docs.map(d=>({id:d.id,...d.data()})); renderQuizzes(); });
+  onSnapshot(collection(db,'bookings'), snap=>{ bookings=snap.docs.map(d=>({id:d.id,...d.data()})); renderBookings(); });
+
+  /* navegación de pestañas */
+  const tabs = document.querySelectorAll('.tab');
+  const sections = ['sec-0','sec-1','sec-2'];
+  const dots = document.querySelectorAll('footer .dot');
+  let current = 0;
+  function goTo(i){
+    current = (i + sections.length) % sections.length;
+    tabs.forEach((t,idx)=>t.classList.toggle('active', idx===current));
+    sections.forEach((id,idx)=>document.getElementById(id).classList.toggle('active', idx===current));
+    dots.forEach((d,idx)=>d.classList.toggle('active', idx===current));
+  }
+  tabs.forEach((t,idx)=> t.addEventListener('click', ()=> goTo(idx)));
+  let rotateTimer = setInterval(()=> goTo(current+1), 12000);
+  document.addEventListener('keydown',(e)=>{
+    if(pinScreen.style.display !== 'none') return; // el pin ya maneja sus propias flechas
+    if(e.key==='ArrowRight'){ goTo(current+1); resetTimer(); }
+    if(e.key==='ArrowLeft'){ goTo(current-1); resetTimer(); }
+  });
+  function resetTimer(){ clearInterval(rotateTimer); rotateTimer=setInterval(()=>goTo(current+1),12000); }
+}
+</script>
+</body>
+</html>
