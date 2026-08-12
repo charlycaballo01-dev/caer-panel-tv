@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -411,6 +412,45 @@ function startApp(){
 
   loadCalendarEvents();
   setInterval(loadCalendarEvents, 15*60*1000); // refresca cada 15 min
+
+  /* ============ AVISOS ============ */
+  const AVISO_ICONS = {
+    formulario: { cls:'form', label:'✉' },
+    instagram:  { cls:'ig',   label:'IG' },
+    whatsapp:   { cls:'wa',   label:'WA' },
+    facebook:   { cls:'fb',   label:'FB' },
+    tiktok:     { cls:'tt',   label:'TT' },
+  };
+  function timeAgo(date){
+    const diffMs = Date.now() - date.getTime();
+    const min = Math.floor(diffMs/60000);
+    if(min < 1) return 'recién';
+    if(min < 60) return `hace ${min} min`;
+    const h = Math.floor(min/60);
+    if(h < 24) return `hace ${h} h`;
+    return `hace ${Math.floor(h/24)} d`;
+  }
+  function renderAvisos(avisos){
+    const el = document.getElementById('avisosList');
+    if(!avisos.length){ el.innerHTML = '<div class="empty">Sin avisos por ahora</div>'; return; }
+    el.innerHTML = avisos.slice(0,8).map(a => {
+      const icon = AVISO_ICONS[a.tipo] || AVISO_ICONS.formulario;
+      const when = a.createdAt?.toDate ? timeAgo(a.createdAt.toDate()) : '';
+      return `<div class="aviso-row">
+        <div class="aviso-icon ${icon.cls}">${icon.label}</div>
+        <div class="aviso-body">
+          <div class="aviso-title">${escapeHtml(a.titulo || 'Nuevo aviso')}</div>
+          <div class="aviso-sub">${escapeHtml(a.detalle || '')}</div>
+        </div>
+        <div class="aviso-time">${when}</div>
+      </div>`;
+    }).join('');
+  }
+  onSnapshot(collection(db,'avisos'), snap=>{
+    const avisos = snap.docs.map(d=>({id:d.id,...d.data()}))
+      .sort((a,b)=>(b.createdAt?.toMillis?.()||0) - (a.createdAt?.toMillis?.()||0));
+    renderAvisos(avisos);
+  });
 
   onSnapshot(collection(db,'students'), snap=>{ students=snap.docs.map(d=>({id:d.id,...d.data()})); render(); });
   onSnapshot(collection(db,'subjects'), snap=>{ subjects=snap.docs.map(d=>({id:d.id,...d.data()})); render(); });
