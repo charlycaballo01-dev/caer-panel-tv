@@ -199,6 +199,8 @@ import { getFirestore, collection, onSnapshot } from "https://www.gstatic.com/fi
 
 /* ============ CONFIG ============ */
 const CORRECT_PIN = "2311"; // <-- cambiá este PIN cuando quieras, son solo 4 números entre comillas
+const GOOGLE_CALENDAR_API_KEY = "AIzaSyAdZBRZ29gCxMkpGglEJUvNShz2WfFMVwA";
+const GOOGLE_CALENDAR_ID = "charlycaballo01@gmail.com";
 const firebaseConfig = {
   apiKey: "AIzaSyBQgPyTugCCDfTU2QnYJLiOeJyNszXz4NE",
   authDomain: "caer-plataforma.firebaseapp.com",
@@ -335,11 +337,86 @@ function startApp(){
     el.innerHTML = upcoming.map(b=>{ const student=students.find(s=>s.id===b.studentId); const when=b.date?formatShort(b.date):(b.day||''); return `<div class="resrow"><span>${escapeHtml(student?.name||'Alumno')} · ${escapeHtml(when)}</span><span>${escapeHtml(b.time||'')}</span></div>`; }).join('');
   }
 
+  /* ============ AGENDA: Google Calendar + reservas ============ */
+  let calendarEvents = [];
+
+  function isoDateOnly(d){ return d.toISOString().slice(0,10); }
+
+  async function loadCalendarEvents(){
+    try{
+      const now = new Date();
+      const start = new Date(now); start.setHours(0,0,0,0);
+      const end = new Date(now); end.setDate(end.getDate()+2); end.setHours(0,0,0,0);
+      const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(GOOGLE_CALENDAR_ID)}/events`
+        + `?key=${GOOGLE_CALENDAR_API_KEY}&timeMin=${start.toISOString()}&timeMax=${end.toISOString()}`
+        + `&singleEvents=true&orderBy=startTime`;
+      const res = await fetch(url);
+      if(!res.ok){ throw new Error('HTTP '+res.status); }
+      const data = await res.json();
+      calendarEvents = (data.items || []).map(ev => ({
+        title: ev.summary || '(sin título)',
+        desc: ev.description || '',
+        start: ev.start?.dateTime || ev.start?.date,
+        allDay: !ev.start?.dateTime
+      }));
+    }catch(err){
+      console.error('Error cargando Google Calendar:', err);
+      calendarEvents = [];
+    }
+    renderAgenda();
+  }
+
+  function renderAgenda(){
+    const today = new Date(); today.setHours(0,0,0,0);
+    const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate()+1);
+    const todayStr = isoDateOnly(today);
+    const tomorrowStr = isoDateOnly(tomorrow);
+
+    renderAgendaDay('agendaHoy', todayStr);
+    renderAgendaDay('agendaManana', tomorrowStr);
+  }
+
+  function renderAgendaDay(elId, dateStr){
+    const el = document.getElementById(elId);
+    const items = [];
+
+    calendarEvents.forEach(ev => {
+      const evDate = ev.allDay ? ev.start : ev.start.slice(0,10);
+      if(evDate !== dateStr) return;
+      const time = ev.allDay ? 'Todo el día' : new Date(ev.start).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+      items.push({ time, sortKey: ev.allDay ? '00:00' : time, title: ev.title, sub: ev.desc.slice(0,80), tag: 'cal', tagLabel: 'Google Calendar' });
+    });
+
+    bookings.forEach(b => {
+      if(b.date !== dateStr) return;
+      if(!['Reservada','Confirmada'].includes(b.status)) return;
+      const student = students.find(s => s.id === b.studentId);
+      items.push({ time: b.time || '', sortKey: b.time || '00:00', title: `Clase con ${student?.name || 'alumno'}`, sub: b.status, tag: 'booking', tagLabel: 'Reserva del campus' });
+    });
+
+    items.sort((a,b) => a.sortKey.localeCompare(b.sortKey));
+
+    if(!items.length){ el.innerHTML = '<div class="empty">Sin eventos ni reservas</div>'; return; }
+
+    el.innerHTML = items.map(it => `
+      <div class="tl-item">
+        <div class="tl-time">${escapeHtml(it.time)}</div>
+        <div class="tl-dot"></div>
+        <div class="tl-content">${escapeHtml(it.title)}
+          ${it.sub ? `<div class="sub">${escapeHtml(it.sub)}</div>` : ''}
+          <span class="tag ${it.tag}">${it.tagLabel}</span>
+        </div>
+      </div>`).join('');
+  }
+
+  loadCalendarEvents();
+  setInterval(loadCalendarEvents, 15*60*1000); // refresca cada 15 min
+
   onSnapshot(collection(db,'students'), snap=>{ students=snap.docs.map(d=>({id:d.id,...d.data()})); render(); });
   onSnapshot(collection(db,'subjects'), snap=>{ subjects=snap.docs.map(d=>({id:d.id,...d.data()})); render(); });
   onSnapshot(collection(db,'itemViews'), snap=>{ itemViews=snap.docs.map(d=>({id:d.id,...d.data()})); renderProgress(); });
   onSnapshot(collection(db,'quizAttempts'), snap=>{ quizAttempts=snap.docs.map(d=>({id:d.id,...d.data()})); renderQuizzes(); });
-  onSnapshot(collection(db,'bookings'), snap=>{ bookings=snap.docs.map(d=>({id:d.id,...d.data()})); renderBookings(); });
+  onSnapshot(collection(db,'bookings'), snap=>{ bookings=snap.docs.map(d=>({id:d.id,...d.data()})); renderBookings(); renderAgenda(); });
 
   /* navegación de pestañas */
   const tabs = document.querySelectorAll('.tab');
